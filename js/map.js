@@ -23,11 +23,21 @@ const sources = {
       tileSize: 256,
       attribution: "© OpenStreetMap contributors"
     },
-    flood: {
+    cs_kanagawa（shiworks）: {
       type: 'raster',
-      tiles: ['https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png'],
+      tiles: ['https://shiworks.xsrv.jp/raster-tiles/pref-kanagawa/kanagawapc-cs-tiles/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: "国土地理院 災害情報"
+      minzoom: 4,
+      maxzoom: 18,
+      attribution: "CSマップ神奈川"
+    },
+    cs_shizuoka（shiworks）: {
+      type: 'raster',
+      tiles: ['https://shiworks.xsrv.jp/raster-tiles/pref-shizuoka/shizuoka-cs-tiles/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 10,
+      maxzoom: 18,
+      attribution: "CSマップ静岡"
     }
   };
   
