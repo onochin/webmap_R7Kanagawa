@@ -1,23 +1,22 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <title>MapLibre 地図切替テンプレート</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-  <link rel="stylesheet" href="style/map.css" />
+  <meta charset="utf-8">
+  <title>背景切替＆3D地形マップ</title>
+  <link rel="stylesheet" href="style/map.css">
+  <link
+    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
 </head>
 <body>
-  <div id="menu">
-    <label><input type="radio" name="basemap" value="gsi_std" checked> 地理院 標準</label>
-    <label><input type="radio" name="basemap" value="gsi_pale"> 地理院 淡色</label>
-    <label><input type="radio" name="basemap" value="gsi_photo"> 地理院 空中写真</label>
-    <label><input type="radio" name="basemap" value="osm"> OSM</label>
-    <label><input type="checkbox" id="flood"> 洪水浸水想定区域</label>
-  </div>
   <div id="map"></div>
-
+  <div id="menu">
+    <label><input type="radio" name="basemap" value="gsi_pale" checked> 国土地理院 淡色地図</label>
+    <label><input type="radio" name="basemap" value="osm"> OSM</label>
+    <label><input type="radio" name="basemap" value="google"> Google Map 風</label>
+  </div>
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <script src="js/map.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
