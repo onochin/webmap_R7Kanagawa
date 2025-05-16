@@ -1,22 +1,25 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-  <meta charset="utf-8">
-  <title>背景切替＆3D地形マップ</title>
-  <link rel="stylesheet" href="style/map.css">
-  <link
-    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
-    rel="stylesheet"
-  />
+    <meta charset="utf-8" />
+    <title>MapLibre GL JS - 国土地理院標高タイル立体表示</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="style.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="map"></div>
-  <div id="menu">
-    <label><input type="radio" name="basemap" value="gsi_pale" checked> 国土地理院 淡色地図</label>
-    <label><input type="radio" name="basemap" value="osm"> OSM</label>
-    <label><input type="radio" name="basemap" value="google"> Google Map 風</label>
-  </div>
-  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <script src="main.js"></script>
+
+<div id="map"></div>
+<div class="map-overlay">
+    <fieldset>
+        <legend>背景地図</legend>
+        <label><input type="radio" name="basemap" value="osm"> OpenStreetMap</label>
+        <label><input type="radio" name="basemap" value="gsi-pale" checked> 地理院地図 (淡色)</label>
+        <label><input type="radio" name="basemap" value="gsi-photo"> 地理院地図 (空中写真)</label>
+    </fieldset>
+</div>
+
+<script src="main.js"></script>
 </body>
 </html>

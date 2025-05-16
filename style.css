@@ -1,0 +1,35 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+}
+
+/* 背景切替用オーバーレイ */
+.map-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+    font-family: sans-serif;
+    z-index: 1;
+}
+
+/* 追加分: ラジオボタン縦並び */
+.map-overlay fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.map-overlay fieldset label {
+    display: block;
+    margin-bottom: 8px;
+}

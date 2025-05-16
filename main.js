@@ -1,108 +1,166 @@
-const map = new maplibregl.Map({
-  container: 'map',
-  style: {
-    version: 8,
-    sources: {
-      // 背景: 国土地理院 淡色地図
-      gsi_pale: {
-        type: 'raster',
-        tiles: [
-          'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'
-        ],
-        tileSize: 256,
-        attribution: "地理院地図"
-      },
-      // DEM: Terrarium 仕様（bounds, maxzoom, wrap を追加）
-      gsi_dem: {
-        type: 'raster-dem',
-        tiles: [
-          'https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.png'
-        ],
-        tileSize: 256,
-        encoding: 'terrarium',
-        attribution: "国土地理院 標高タイル",
-        bounds: [122.0, 20.0, 154.0, 46.0],  // 日本周辺のみ
-        maxzoom: 14,                          // 提供ズーム
-        wrap: false                          // 世界コピー無効化
-      }
-    },
-    layers: [
-      {
-        id: 'gsi_pale',
-        type: 'raster',
-        source: 'gsi_pale'
-      }
-    ]
-  },
-  center: [139.3504, 35.3278],
-  zoom: 10,
-  pitch: 0,
-  bearing: 0,
-  renderWorldCopies: false                // 地球の水平複製を無効化
+// main.js
+
+// --- 国土地理院 標高タイル (PNG) を MapLibre GL JS Terrain RGB 形式に変換するプロトコル登録 ---
+maplibregl.addProtocol('gsidem', (params, callback) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+
+    image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            callback(new Error('Failed to get 2D context from canvas.'));
+            return;
+        }
+
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // 標高クリップ設定 (m)
+        const MIN_ELEVATION_M = 0.0;
+        const MAX_ELEVATION_M = 4000.0;
+
+        // 各ピクセルをデコード→再エンコード
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            let h = 0;
+            if (r === 128 && g === 0 && b === 0) {
+                h = MIN_ELEVATION_M;
+            } else {
+                const u = r * 256 * 256 + g * 256 + b;
+                h = (r < 128 ? u : u - 16777216) * 0.01;
+            }
+            h = Math.min(Math.max(h, MIN_ELEVATION_M), MAX_ELEVATION_M);
+
+            let valEncoded = (h + 10000.0) / 0.1;
+            valEncoded = Math.min(Math.max(valEncoded, 0), 16777215);
+
+            data[i]     = Math.floor(valEncoded / (256 * 256));
+            data[i + 1] = Math.floor((valEncoded % (256 * 256)) / 256);
+            data[i + 2] = Math.floor(valEncoded % 256);
+            // αチャネル (data[i+3]) は変更しない
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                callback(new Error('Canvas to Blob failed.'));
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => callback(null, reader.result, null, null);
+            reader.onerror = () => callback(new Error('FileReader error.'));
+            reader.readAsArrayBuffer(blob);
+        }, 'image/png');
+    };
+
+    image.onerror = () => {
+        const actualUrl = params.url.replace(/^gsidem:\/\//, 'https://cyberjapandata.gsi.go.jp/xyz/dem_png/');
+        callback(new Error(`Could not load image for terrain tile at ${actualUrl}`));
+    };
+
+    // PNGタイル URL に置換
+    const tileUrl = params.url.replace(/^gsidem:\/\//, 'https://cyberjapandata.gsi.go.jp/xyz/dem_png/');
+    image.src = tileUrl;
+
+    return { cancel: () => { image.src = ''; } };
 });
 
-// Console デバッグ用
-window.map = map;
+// 中心座標・ズーム・地形強調倍率
+const hiratsukaStation = [139.3491813, 35.3273838];
+const initialZoom = 10;
+const terrainExaggeration = 1.5;
 
-map.on('load', () => {
-  // 3D 地形をセット
-  map.setTerrain({ source: 'gsi_dem', exaggeration: 1.5 });
-  // 空レイヤ追加
-  map.addLayer({
-    id: 'sky',
-    type: 'sky',
-    paint: { 'sky-type': 'atmosphere' }
-  });
-  // ズーム・回転・傾斜コントロール
-  map.addControl(new maplibregl.NavigationControl());
-});
-
-// 背景切替用ソース一覧
-const sources = {
-  gsi_pale: {
-    type: 'raster',
-    tiles: [
-      'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'
-    ],
+// 地形ソース定義
+const gsiTerrainSource = {
+    type: 'raster-dem',
+    tiles: ['gsidem://{z}/{x}/{y}.png'],
     tileSize: 256,
-    attribution: "地理院地図"
-  },
-  osm: {
-    type: 'raster',
-    tiles: [
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-    ],
-    tileSize: 256,
-    attribution: "© OpenStreetMap contributors"
-  },
-  google: {
-    type: 'raster',
-    tiles: [
-      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
-    ],
-    tileSize: 256,
-    attribution: "Google Maps"
-  }
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院標高タイル</a>',
+    maxzoom: 14
 };
 
-let currentBasemap = 'gsi_pale';
+// 背景スタイル定義
+const baseStyles = {
+    osm: {
+        version: 8,
+        sources: {
+            'osm-tiles': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.jp/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+            },
+            'gsi-terrain': gsiTerrainSource
+        },
+        layers: [
+            { id: 'osm-layer', type: 'raster', source: 'osm-tiles', minzoom: 0, maxzoom: 22 }
+        ],
+        terrain: { source: 'gsi-terrain', exaggeration: terrainExaggeration }
+    },
+    'gsi-pale': {
+        version: 8,
+        sources: {
+            'gsi-pale-tiles': {
+                type: 'raster',
+                tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院淡色地図</a>'
+            },
+            'gsi-terrain': gsiTerrainSource
+        },
+        layers: [
+            { id: 'gsi-pale-layer', type: 'raster', source: 'gsi-pale-tiles', minzoom: 0, maxzoom: 18 }
+        ],
+        terrain: { source: 'gsi-terrain', exaggeration: terrainExaggeration }
+    },
+    'gsi-photo': {
+        version: 8,
+        sources: {
+            'gsi-photo-tiles': {
+                type: 'raster',
+                tiles: ['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'],
+                tileSize: 256,
+                attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院航空写真</a>'
+            },
+            'gsi-terrain': gsiTerrainSource
+        },
+        layers: [
+            { id: 'gsi-photo-layer', type: 'raster', source: 'gsi-photo-tiles', minzoom: 0, maxzoom: 18 }
+        ],
+        terrain: { source: 'gsi-terrain', exaggeration: terrainExaggeration }
+    }
+};
 
-document.querySelectorAll('input[name="basemap"]').forEach(input => {
-  input.addEventListener('change', e => {
-    const sel = e.target.value;
-    if (sel === currentBasemap) return;
+// Map 初期化
+const map = new maplibregl.Map({
+    container: 'map',
+    style: baseStyles['gsi-pale'],
+    center: hiratsukaStation,
+    zoom: initialZoom,
+    pitch: 0,
+    bearing: 0,
+    maxPitch: 85
+});
 
-    // 古い背景を削除
-    map.removeLayer(currentBasemap);
-    map.removeSource(currentBasemap);
+// コントロール類
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), 'top-right');
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }));
+map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
-    // 新しい背景を追加（sky レイヤの前に挿入）
-    map.addSource(sel, sources[sel]);
-    map.addLayer(
-      { id: sel, type: 'raster', source: sel },
-      'sky'
-    );
+// ▶ ラジオボタンで背景切り替え
+document.querySelectorAll('input[name="basemap"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const styleKey = e.target.value;
+        map.setStyle(baseStyles[styleKey]);
+    });
+});
 
-    currentBasemap = sel;
-  });
+// エラー検知
+map.on('error', (e) => {
+    console.error('MapLibre error:', e);
 });
